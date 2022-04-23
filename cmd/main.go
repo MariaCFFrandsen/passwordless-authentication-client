@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"passwordless-authentication-client/internal"
 )
 
 // Load the index.html template.
@@ -88,7 +89,7 @@ type User struct {
 	PK       []byte `json:"publickey"`
 }
 func post() *rsa.PublicKey {
-	if FileExists("hello-key.txt") || FileExists("hello-certificate.bin") {
+	if internal.FileExists("hello-key.txt") || internal.FileExists("hello-certificate.bin") {
 		return nil
 	}
 
