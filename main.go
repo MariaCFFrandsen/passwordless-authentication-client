@@ -7,6 +7,7 @@ import (
 	crypto "crypto/x509"
 	"encoding/json"
 	"fmt"
+	"github.com/MariaCFFrandsen/passwordless-authentication/authenticator/cryptography"
 	"html/template"
 	"io/ioutil"
 	"log"
@@ -14,12 +15,12 @@ import (
 )
 
 // Load the index.html template.
-var tmpl = template.Must(template.New("tmpl").ParseFiles("index.html"))
+var tmpl = template.Must(template.New("tmpl").ParseFiles("frontend/index.html"))
 
 func main() {
-	fmt.Println("Calling API...")
+	fmt.Println("Ready to authenticate")
 	// Serve / with the index.html file.
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/frontend/", func(w http.ResponseWriter, r *http.Request) { //rm?
 		if err := tmpl.ExecuteTemplate(w, "index.html", nil); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
@@ -27,13 +28,30 @@ func main() {
 
 	// Serve /callme with a text response.
 	http.HandleFunc("/callme", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("You called me!")
-		get()
+		pk := post()
 		w.Header().Add("Content-Type", "application/json")
 		w.Header().Add("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode("pong")
+		if pk == nil {
+			json.NewEncoder(w).Encode("already have a user")
+		} else {
+			json.NewEncoder(w).Encode("authenticated")
+		}
+
+	})
+
+	http.HandleFunc("/authenticate", func(w http.ResponseWriter, r *http.Request) {
+		certificate := cryptography.RetrieveCertificate("hello")
+		authenticated := authenticate(certificate.PublicKey)
+		w.Header().Add("Content-Type", "application/json")
+		w.Header().Add("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		if authenticated {
+			w.WriteHeader(http.StatusOK)
+		} else {
+			w.WriteHeader(http.StatusUnauthorized)
+		}
 	})
 
 	// Start the server at http://localhost:9000
@@ -66,12 +84,15 @@ func get() {
 }
 
 type User struct {
-	Username string
-	PK []byte
+	Username string `json:"username"`
+	PK       []byte `json:"publickey"`
 }
+func post() *rsa.PublicKey {
+	if FileExists("hello-key.txt") || FileExists("hello-certificate.bin") {
+		return nil
+	}
 
-func post() rsa.PublicKey {
-	fmt.Println("2. Performing Http Post...")
+	fmt.Println("1. Creating User...")
 	privateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
 	key := crypto.MarshalPKCS1PublicKey(&privateKey.PublicKey)
 	user := User{
@@ -91,17 +112,17 @@ func post() rsa.PublicKey {
 	bodyString := string(bodyBytes)
 	fmt.Println(bodyString)
 	fmt.Printf("Status Code: %d\n", resp.StatusCode)
-
-	// Convert response body to Todo struct
-	//var todoStruct User
-	//json.Unmarshal(bodyBytes, &todoStruct)
-	//	fmt.Printf("%+v\n", todoStruct)
-	return privateKey.PublicKey
+	if resp.StatusCode == 201  {
+		cryptography.SaveCertificate(cryptography.CreateCertificate(cryptography.KeyPair{
+			PrivateKey: &cryptography.PrivateKey{PrivateKey: privateKey},
+			PublicKey:  &cryptography.PublicKey{PublicKey: &privateKey.PublicKey},
+		}), "hello")
+	}
+	return &privateKey.PublicKey
 }
 
-func authenticate(pk rsa.PublicKey) {
-	fmt.Println("2. Performing Authenticate...")
-	key := crypto.MarshalPKCS1PublicKey(&pk)
+func authenticate(key []byte) bool {
+	fmt.Println("2. Authenticating...")
 	user := User{
 		Username: "maria",
 		PK:       key,
@@ -119,9 +140,8 @@ func authenticate(pk rsa.PublicKey) {
 	bodyString := string(bodyBytes)
 	fmt.Println(bodyString)
 	fmt.Printf("Status Code: %d\n", resp.StatusCode)
-
-	// Convert response body to Todo struct
-	//var todoStruct User
-	//json.Unmarshal(bodyBytes, &todoStruct)
-	//	fmt.Printf("%+v\n", todoStruct)
+	if resp.StatusCode == 202 {
+		return true
+	}
+	return false
 }

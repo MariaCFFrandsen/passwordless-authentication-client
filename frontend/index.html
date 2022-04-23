@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>CodePen - A Pen by Mohithpoojary</title>
     <link rel='stylesheet' href='https://use.fontawesome.com/releases/v5.2.0/css/all.css'>
-    <link rel='stylesheet' href='https://use.fontawesome.com/releases/v5.2.0/css/fontawesome.css'><link rel="stylesheet" href="./style.css">
+    <link rel='stylesheet' href='https://use.fontawesome.com/releases/v5.2.0/css/fontawesome.css'><link rel="stylesheet" href="style.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
     <script type="text/javascript">
         $(document).ready(function() {
@@ -17,8 +17,7 @@
                     success: function(result) {
                         var r=JSON.parse(result);
                         document.getElementById("response").innerHTML = r;
-                        document.getElementById("is_user_created").src="green-tick-white.png"
-                        alert("success")
+                        document.getElementById("is_user_created").src="resources/green-tick-white.png"
                     },
                     error: function(err) {
                         document.getElementById("response").innerHTML = "error";
@@ -35,10 +34,24 @@
         });
         $(document).ready(function() {
             $("#authenticate").on('click', function() {
-                check = true
-                if (check) {
-                    window.location.href = "authenticated.html";
-                }
+                $.ajax({
+                    url: "http://localhost:9000/authenticate",
+                    method: "GET",
+                    contentType: 'application/json;',
+                    dataType: 'text',
+                    success: function(result) {
+                        window.location.href = "authenticated.html";
+                        return false
+                    },
+                    error: function(err) {
+                        document.getElementById("response").innerHTML = "error";
+                        console.log(err)
+                        alert(err.response)
+                    },
+                    //complete: function (result) {
+                    //    alert("ajax completed " + result.statusCode);
+                    //}
+                });
                 return false;
             });
         });
@@ -51,7 +64,7 @@
     <div class="screen">
         <div class="screen__content">
             <form class="login">
-                <img class="key" src="key-transparent.png">
+                <img class="key" src="resources/key-transparent.png">
                 <h3>Passwordless Authentication</h3>
                 <button id="callGo" class="button login__submit">
                     <span class="button__text">Create User</span>
@@ -62,7 +75,6 @@
                 <button id="authenticate" class="button login__submit" onclick="change_page()">
                     <span class="button__text">Authenticate Me</span>
                     <i class="button__icon fas fa-chevron-right"></i>
-                    <!--<a href="authenticated.html">Test Page</a>-->
                 </button>
             </form>
         </div>
